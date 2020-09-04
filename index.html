@@ -21,6 +21,18 @@
 
             const game = new Phaser.Game(config);
 
+            const SCREEN_SIZE = 480;
+            const Dir = {
+                RIGHT: 0,
+                DOWN: 1,
+                LEFT: 2,
+                UP: 3,
+                DOWN_RIGHT: 10,
+                DOWN_LEFT: 11,
+                UP_LEFT: 12,
+                UP_RIGHT: 13
+            }
+
             let player = null;
             let playerGroup = null;
             let gameOver = false;
@@ -40,9 +52,9 @@
             let godMode = false;
 
             function preload() {
-                this.load.image('particle', 'assets/particle.png');
-                this.load.image('particle-red', 'assets/particle-red.png');
-                this.load.image('particle-yellow', 'assets/particle-yellow.png');
+                this.load.image('blue', 'assets/blue.png');
+                this.load.image('red', 'assets/red.png');
+                this.load.image('yellow', 'assets/yellow.png');
                 this.load.image('green', 'assets/green.png');
                    
             }
@@ -62,7 +74,7 @@
 
                 bulletGroup = this.physics.add.group();
 
-                this.add.particles('particle', {
+                this.add.particles('blue', {
 
                     speed: { min: 110, max: 130 },
                     frequency: 25,
@@ -151,16 +163,16 @@
                 const dir = Math.round(Math.random() * 3);
                 let rx;
                 let ry;
-                if (dir === 0) {
+                if (dir === Dir.RIGHT) {
                     rx = 0;
                     ry = randPos();
-                } else if (dir === 1) {
+                } else if (dir === Dir.DOWN) {
                     rx = randPos();
                     ry = 0;
-                } else if (dir === 2) {
+                } else if (dir === Dir.LEFT) {
                     rx = 500;
                     ry = randPos();
-                } else if (dir === 3) {
+                } else if (dir === Dir.UP) {
                     rx = randPos();
                     ry = 500;
                 }
@@ -175,7 +187,7 @@
 
                 bulletGroup.add(bullet);
 
-                const prt = scene.add.particles(fast ? 'particle-yellow' : 'particle-red', {
+                const prt = scene.add.particles(fast ? 'yellow' : 'red', {
 
                     speed: { min: 110, max: 130 },
                     frequency: 25,
@@ -194,10 +206,10 @@
                 const greenBullets = [];
                 if (type % 2 === 0) {
                     greenBullets.push(scene.add.rectangle(0, 0, 24, 24));
-                    greenBullets.push(scene.add.rectangle(480, 0, 24, 24));
+                    greenBullets.push(scene.add.rectangle(SCREEN_SIZE, 0, 24, 24));
                 } else {
-                    greenBullets.push(scene.add.rectangle(480, 480, 24, 24));
-                    greenBullets.push(scene.add.rectangle(0, 480, 24, 24));
+                    greenBullets.push(scene.add.rectangle(SCREEN_SIZE, SCREEN_SIZE, 24, 24));
+                    greenBullets.push(scene.add.rectangle(0, SCREEN_SIZE, 24, 24));
                 }
                 
                 for (let r of greenBullets) {
@@ -216,16 +228,16 @@
                 }
                 
                 if (type % 2 === 0) {
-                    greenBullets[0].dir = 10;
-                    greenBullets[1].dir = 11;
+                    greenBullets[0].dir = Dir.DOWN_RIGHT;
+                    greenBullets[1].dir = Dir.DOWN_LEFT;
                 } else {
-                    greenBullets[0].dir = 12;
-                    greenBullets[1].dir = 13;
+                    greenBullets[0].dir = Dir.UP_LEFT;
+                    greenBullets[1].dir = Dir.UP_RIGHT;
                 }
             }
 
             function randPos() {
-                return Math.round(Math.random() * 380 + 50);
+                return Math.round(Math.random() * (SCREEN_SIZE-100) + 50);
             }
 
             function update() {
@@ -238,13 +250,13 @@
                 
                     for (let bullet of bullets) {
                         const speed = bullet.speed;
-                        if (bullet.dir === 0 || bullet.dir === 10 || bullet.dir === 13) {
+                        if ([Dir.RIGHT, Dir.DOWN_RIGHT, Dir.UP_RIGHT].includes(bullet.dir)) {
                             bullet.setX(bullet.x+speed);
-                        } if (bullet.dir === 1 || bullet.dir === 10 || bullet.dir === 11) {
+                        } if ([Dir.DOWN, Dir.DOWN_RIGHT, Dir.DOWN_LEFT].includes(bullet.dir)) {
                             bullet.setY(bullet.y+speed);
-                        } if (bullet.dir === 2 || bullet.dir === 11 || bullet.dir === 12) {
+                        } if ([Dir.LEFT, Dir.DOWN_LEFT, Dir.UP_LEFT].includes(bullet.dir)) {
                             bullet.setX(bullet.x-speed);
-                        } if (bullet.dir === 3 || bullet.dir === 12 || bullet.dir === 13) {
+                        } if ([Dir.UP, Dir.UP_RIGHT, Dir.UP_LEFT].includes(bullet.dir)) {
                             bullet.setY(bullet.y-speed);
                         }
                     }
