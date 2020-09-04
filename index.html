@@ -34,6 +34,11 @@
             let bullets = [];
             let bulletGroup = null;
 
+            let level = 1;
+            let levelLabel = null;
+
+            let godMode = false;
+
             function preload() {
                 this.load.image('particle', 'assets/particle.png');
                 this.load.image('particle-red', 'assets/particle-red.png');
@@ -46,12 +51,8 @@
                 this.input.setDefaultCursor('none');
 
                 scoreLabel = this.add.text(25, 25, '', { color: '#FFFFFF', fontSize: 24 }).setDepth(400);
-                // gameOverLabel = this.add.text(200, 32, 'Press <Space> to start',
-                //                               { 
-                //                                   color: '#FFFFFF', 
-                //                                   fontSize: 36, 
-                //                                   align: 'center' 
-                //                               }).setDepth(400);
+                levelLabel = this.add.text(455, 25, 'NORMAL', { color: '#FFFFFF', fontSize: 24 }).setDepth(400);
+                levelLabel.setOrigin(1, 0);
 
                 initGame(this);
 
@@ -76,8 +77,10 @@
                 this.physics.add.overlap(playerGroup, 
                                          bulletGroup,
                                          function() {
-                                            gameOver = true;
-                                            gameLoop.paused = true;
+                                            if (!godMode) {
+                                                gameOver = true;
+                                                gameLoop.paused = true;
+                                            }
                                          },
                                          null,
                                          this);
@@ -87,6 +90,8 @@
                     if (e.keyCode == Phaser.Input.Keyboard.KeyCodes.SPACE) {
                         if (gameOver) {
                             score = 0;
+                            level = 1;
+                            levelLabel.setText('NORMAL');
                             gameOver = false;
                             gameLoop.paused = false;
                             bullets.forEach(b => {
@@ -95,6 +100,9 @@
                             });
                             bullets.length = 0;
                         }
+                    } else if (e.keyCode == Phaser.Input.Keyboard.KeyCodes.G) {
+                        godMode = !godMode;
+                        console.log(`God Mode ${godMode ? 'ON' : 'OFF'}`);
                     }
                 });
             }
@@ -117,10 +125,18 @@
                     callbackScope: scene,
                     callback: function() {
                         score++;
-                        if (score > 50 || score % 2 === 1) {
+                        if (score > 50 || score % 3 === 1) {
+                            if (score > 50 && level === 1) {
+                                level = 2;
+                                levelLabel.setText('AVERAGE');
+                            }
                             shoot(scene);
                         }
                         if (score > 199) {
+                            if (level === 3) {
+                                level = 4;
+                                levelLabel.setText('MEDIUM');
+                            }
                             if (score % 50 === 0 || score % 50 === 5) {
                                 specAttack(scene, 0);
                             } else if (score % 50 === 2) {
@@ -148,12 +164,16 @@
                     rx = randPos();
                     ry = 500;
                 }
-                const rect = scene.add.rectangle(rx, ry, 24, 24);
-                rect.dir = dir;
+                const bullet = scene.add.rectangle(rx, ry, 24, 24);
+                bullet.dir = dir;
+                if (level === 2 && score > 100) {
+                    level = 3;
+                    levelLabel.setText('MODERATE');
+                }
                 const fast = score > 100 && Math.random() <= 0.1;
-                rect.speed = fast ? 20 : 8;
+                bullet.speed = fast ? 20 : 4;
 
-                bulletGroup.add(rect);
+                bulletGroup.add(bullet);
 
                 const prt = scene.add.particles(fast ? 'particle-yellow' : 'particle-red', {
 
@@ -162,25 +182,25 @@
                     lifespan: 150,
                     scale: { min: 1, max: 2 },
                     angle: { min: 0, max: 360 },
-                    follow: rect
+                    follow: bullet
                 });
-                rect.particles = prt;
+                bullet.particles = prt;
 
-                bullets.push(rect);
+                bullets.push(bullet);
             }
 
             function specAttack(scene, type) {
 
-                const rects = [];
+                const greenBullets = [];
                 if (type % 2 === 0) {
-                    rects.push(scene.add.rectangle(0, 0, 24, 24));
-                    rects.push(scene.add.rectangle(480, 0, 24, 24));
+                    greenBullets.push(scene.add.rectangle(0, 0, 24, 24));
+                    greenBullets.push(scene.add.rectangle(480, 0, 24, 24));
                 } else {
-                    rects.push(scene.add.rectangle(480, 480, 24, 24));
-                    rects.push(scene.add.rectangle(0, 480, 24, 24));
+                    greenBullets.push(scene.add.rectangle(480, 480, 24, 24));
+                    greenBullets.push(scene.add.rectangle(0, 480, 24, 24));
                 }
                 
-                for (let r of rects) {
+                for (let r of greenBullets) {
                     r.speed = 16;
                     bullets.push(r);
 
@@ -196,11 +216,11 @@
                 }
                 
                 if (type % 2 === 0) {
-                    rects[0].dir = 10;
-                    rects[1].dir = 11;
+                    greenBullets[0].dir = 10;
+                    greenBullets[1].dir = 11;
                 } else {
-                    rects[0].dir = 12;
-                    rects[1].dir = 13;
+                    greenBullets[0].dir = 12;
+                    greenBullets[1].dir = 13;
                 }
             }
 
@@ -209,25 +229,23 @@
             }
 
             function update() {
-                scoreLabel.setText([
-                    score
-                ]);
+                scoreLabel.setText(score);
 
                 if (!gameOver) {
                     const p = this.input.activePointer;
                     player.setX(p.worldX);
                     player.setY(p.worldY);
                 
-                    for (let rect of bullets) {
-                        const speed = rect.speed;
-                        if (rect.dir === 0 || rect.dir === 10 || rect.dir === 13) {
-                            rect.setX(rect.x+speed);
-                        } if (rect.dir === 1 || rect.dir === 10 || rect.dir === 11) {
-                            rect.setY(rect.y+speed);
-                        } if (rect.dir === 2 || rect.dir === 11 || rect.dir === 12) {
-                            rect.setX(rect.x-speed);
-                        } if (rect.dir === 3 || rect.dir === 12 || rect.dir === 13) {
-                            rect.setY(rect.y-speed);
+                    for (let bullet of bullets) {
+                        const speed = bullet.speed;
+                        if (bullet.dir === 0 || bullet.dir === 10 || bullet.dir === 13) {
+                            bullet.setX(bullet.x+speed);
+                        } if (bullet.dir === 1 || bullet.dir === 10 || bullet.dir === 11) {
+                            bullet.setY(bullet.y+speed);
+                        } if (bullet.dir === 2 || bullet.dir === 11 || bullet.dir === 12) {
+                            bullet.setX(bullet.x-speed);
+                        } if (bullet.dir === 3 || bullet.dir === 12 || bullet.dir === 13) {
+                            bullet.setY(bullet.y-speed);
                         }
                     }
                 }
