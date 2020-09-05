@@ -107,10 +107,11 @@
                             gameOver = false;
                             gameLoop.paused = false;
                             bullets.forEach(b => {
+                                bulletGroup.remove(b);
                                 b.particles.destroy();
                                 b.destroy();
                             });
-                            bullets.length = 0;
+                            bullets.splice(0, bullets.length);
                         }
                     } else if (e.keyCode == Phaser.Input.Keyboard.KeyCodes.G) {
                         godMode = !godMode;
@@ -259,11 +260,14 @@
                         } if ([Dir.UP, Dir.UP_RIGHT, Dir.UP_LEFT].includes(bullet.dir)) {
                             bullet.setY(bullet.y-speed);
                         }
+                        if (bullet.x < -200 || bullet.x > SCREEN_SIZE+200 || bullet.y < -200 || bullet.y > SCREEN_SIZE+200) {
+                            bulletGroup.remove(bullet);
+                            bullet.particles.destroy();
+                            bullets = bullets.filter(b => b !== bullet);
+                            bullet.destroy();
+                        }
                     }
                 }
-
-
-                // gameOverLabel.setVisible(isGameOver);
             }
         </script>
     </body>
