@@ -33,6 +33,13 @@
                 UP_RIGHT: 13
             }
 
+            const AttackScore = {
+                COMMON: 5,
+                RAIN: 60,
+                FAST: 120,
+                X: 200
+            }
+
             let player = null;
             let playerGroup = null;
             let gameOver = false;
@@ -45,9 +52,6 @@
 
             let bullets = [];
             let bulletGroup = null;
-
-            let level = 1;
-            let levelLabel = null;
 
             let godMode = false;
 
@@ -63,8 +67,6 @@
                 this.input.setDefaultCursor('none');
 
                 scoreLabel = this.add.text(25, 25, '', { color: '#FFFFFF', fontSize: 24 }).setDepth(400);
-                levelLabel = this.add.text(455, 25, 'NORMAL', { color: '#FFFFFF', fontSize: 24 }).setDepth(400);
-                levelLabel.setOrigin(1, 0);
 
                 initGame(this);
 
@@ -84,8 +86,6 @@
                     follow: player
                 });
 
-                shoot(this);
-
                 this.physics.add.overlap(playerGroup, 
                                          bulletGroup,
                                          function() {
@@ -97,21 +97,17 @@
                                          null,
                                          this);
 
+                this.input.on('pointerdown', e => {
+                    if (gameOver && e.button === 0) {
+                        restartGame();
+                    }
+                })
+
                 this.input.keyboard.on('keydown', e => {
                 
                     if (e.keyCode == Phaser.Input.Keyboard.KeyCodes.SPACE) {
                         if (gameOver) {
-                            score = 0;
-                            level = 1;
-                            levelLabel.setText('NORMAL');
-                            gameOver = false;
-                            gameLoop.paused = false;
-                            bullets.forEach(b => {
-                                bulletGroup.remove(b);
-                                b.particles.destroy();
-                                b.destroy();
-                            });
-                            bullets.splice(0, bullets.length);
+                            restartGame();
                         }
                     } else if (e.keyCode == Phaser.Input.Keyboard.KeyCodes.G) {
                         godMode = !godMode;
@@ -126,6 +122,18 @@
                 initGameLoop(scene, 250);
             }
 
+            function restartGame() {
+                score = 0;
+                gameOver = false;
+                gameLoop.paused = false;
+                bullets.forEach(b => {
+                    bulletGroup.remove(b);
+                    b.particles.destroy();
+                    b.destroy();
+                });
+                bullets.splice(0, bullets.length);
+            }
+
             function initGameLoop(scene, delay) {
                 if (gameLoop !== null) {
                     gameLoop.destroy();
@@ -138,29 +146,37 @@
                     callbackScope: scene,
                     callback: function() {
                         score++;
-                        if (score > 50 || score % 3 === 1) {
-                            if (score > 50 && level === 1) {
-                                level = 2;
-                                levelLabel.setText('AVERAGE');
+                        if (score > AttackScore.COMMON && score % 3 === 1) {
+                            if (score > AttackScore.FAST && Math.random() <= 0.1) {
+                                attackFast(scene);
+                            } else {
+                                attackCommon(scene);
                             }
-                            shoot(scene);
                         }
-                        if (score > 199) {
-                            if (level === 3) {
-                                level = 4;
-                                levelLabel.setText('MEDIUM');
-                            }
+                        if (score > AttackScore.X) {
                             if (score % 50 === 0 || score % 50 === 5) {
-                                specAttack(scene, 0);
+                                attackX(scene, 0);
                             } else if (score % 50 === 2) {
-                                specAttack(scene, 1);
+                                attackX(scene, 1);
                             }
+                        }
+
+                        if (score > AttackScore.RAIN && score % 6 === 0 && Math.random() <= 0.4) {
+                            attackRain(scene);
                         }
                     }
                 });
             }
 
-            function shoot(scene) {
+            function attackCommon(scene) {
+                _attackRandom(scene, false);
+            }
+
+            function attackFast(scene) {
+                _attackRandom(scene, true);
+            }
+
+            function _attackRandom(scene, fast) {
                 const dir = Math.round(Math.random() * 3);
                 let rx;
                 let ry;
@@ -178,12 +194,7 @@
                     ry = 500;
                 }
                 const bullet = scene.add.rectangle(rx, ry, 24, 24);
-                bullet.dir = dir;
-                if (level === 2 && score > 100) {
-                    level = 3;
-                    levelLabel.setText('MODERATE');
-                }
-                const fast = score > 100 && Math.random() <= 0.1;
+                bullet.dir = dir;                
                 bullet.speed = fast ? 20 : 4;
 
                 bulletGroup.add(bullet);
@@ -202,7 +213,31 @@
                 bullets.push(bullet);
             }
 
-            function specAttack(scene, type) {
+            function attackRain(scene) {
+                const attackDir = Math.round(Math.random() * 3);
+                const redBullets = [];
+                for (let k = 0; k < 20; k++) {
+                    redBullets.push(scene.add.rectangle(10 + 30*k, -k*150 - 10, 24, 24));
+                }
+
+                for (let b of redBullets) {
+                    b.speed = 4;
+                    b.dir = Dir.DOWN;
+                    bullets.push(b);
+
+                    const prt = scene.add.particles('red', {
+                        speed: { min: 110, max: 130 },
+                        frequency: 25,
+                        lifespan: 150,
+                        scale: { min: 1, max: 2 },
+                        angle: { min: 0, max: 360 },
+                        follow: b
+                    });
+                    b.particles = prt;
+                }
+            }
+
+            function attackX(scene, type) {
 
                 const greenBullets = [];
                 if (type % 2 === 0) {
@@ -260,7 +295,7 @@
                         } if ([Dir.UP, Dir.UP_RIGHT, Dir.UP_LEFT].includes(bullet.dir)) {
                             bullet.setY(bullet.y-speed);
                         }
-                        if (bullet.x < -200 || bullet.x > SCREEN_SIZE+200 || bullet.y < -200 || bullet.y > SCREEN_SIZE+200) {
+                        if (checkOutOfScreen(bullet)) {
                             bulletGroup.remove(bullet);
                             bullet.particles.destroy();
                             bullets = bullets.filter(b => b !== bullet);
@@ -268,6 +303,13 @@
                         }
                     }
                 }
+            }
+
+            function checkOutOfScreen(bullet) {
+                return bullet.x < -200 && [Dir.LEFT, Dir.DOWN_LEFT, Dir.UP_LEFT].includes(bullet.dir)
+                    || bullet.x > SCREEN_SIZE+200 && [Dir.RIGHT, Dir.DOWN_RIGHT, Dir.UP_RIGHT].includes(bullet.dir)
+                    || bullet.y < -200 && [Dir.UP, Dir.UP_RIGHT, Dir.UP_LEFT].includes(bullet.dir)
+                    || bullet.y > SCREEN_SIZE+200 && [Dir.DOWN, Dir.DOWN_RIGHT, Dir.DOWN_LEFT].includes(bullet.dir);
             }
         </script>
     </body>
