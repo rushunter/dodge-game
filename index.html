@@ -179,7 +179,12 @@
             }
 
             function _attackRandom(scene, fast) {
-                const dir = Math.round(Math.random() * 3);
+                let dir = Math.round(Math.random() * 3);
+                if (!fast && score > AttackScore.RAIN 
+                        && [Dir.UP, Dir.DOWN].includes(dir)) {
+                    dir--;
+                }
+
                 let rx;
                 let ry;
                 if (dir === Dir.RIGHT) {
